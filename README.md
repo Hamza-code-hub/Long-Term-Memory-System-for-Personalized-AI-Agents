@@ -1,523 +1,682 @@
-# JiuwenMemory
+# JiuwenMemory — Long-Term Memory for Personalized AI Agents
 
-[中文版](README.zh.md) | [English Version](README.md)
+<p align="center">
+  <img src="docs/assets/jiuwenmemory-hero.png" alt="JiuwenMemory long-term memory platform" width="100%" />
+</p>
 
-## 1 Introduction
+<p align="center">
+  <strong>From short-lived context to persistent, searchable, governable agent memory.</strong><br/>
+  A modular long-term memory system with layered memory construction, background consolidation, graph memory, multi-backend storage, secure multi-tenant operation, REST/MCP services, and agent integrations.
+</p>
 
-**JiuwenMemory** is an **AutoGenetic Memory** system open-sourced by the **openJiuwen community** and designed specifically for Agents — enabling a cognitive leap from "**information storage**" to "**autonomous growth**" for memory. Its core philosophy: in an AutoGenetic memory system, every memory acts like a **gene segment**, and the key technical capabilities are built around genetic memory's **precision, efficiency, and cross-organism replication**.
+<p align="center">
+  <a href="#overview">Overview</a> •
+  <a href="#why-jiuwenmemory">Why JiuwenMemory</a> •
+  <a href="#memory-architecture">Architecture</a> •
+  <a href="#memory-lifecycle">Memory Lifecycle</a> •
+  <a href="#storage--retrieval">Storage</a> •
+  <a href="#memory-services">Services</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#security--isolation">Security</a> •
+  <a href="#license">License</a>
+</p>
 
-Agent conversational systems rely on limited context windows — once the Token limit is exceeded or a session restarts, information vanishes entirely. The team categorizes this "amnesia" into four perennial problems: users forced to repeat questions, lack of personalization, contradictory cross-session decisions, and experience perpetually stuck at zero with no accumulation. As large-model applications enter deeper waters, what determines an Agent's experience ceiling is no longer just "getting the right answer," but "being able to continuously remember the same person."
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square" alt="Python 3.11+" />
+  <img src="https://img.shields.io/badge/Memory-L0--L3-7C3AED?style=flat-square" alt="L0-L3 memory" />
+  <img src="https://img.shields.io/badge/API-FastAPI-009688?style=flat-square" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/Protocol-MCP-111827?style=flat-square" alt="MCP" />
+  <img src="https://img.shields.io/badge/Security-AES--256--GCM-0F766E?style=flat-square" alt="AES-256-GCM" />
+  <img src="https://img.shields.io/badge/License-Apache--2.0-blue?style=flat-square" alt="Apache 2.0" />
+</p>
 
-> "Model capabilities determine the 'lower bound of intelligence' for Agents; memory systems determine the 'upper bound of experience.'"
+---
 
-**JiuwenMemory** restructures AI memory from **passive information storage** into **governable, cross-platform shared, and self-evolving** core data assets — empowering Agents with the ability to truly "remember, understand, and serve users."
+## Overview
 
-## 2 Why Choose JiuwenMemory?
+**JiuwenMemory** is an **AutoGenetic Memory** system designed for AI agents that need to preserve useful information across long conversations, sessions, and applications.
 
-### 🧠 Precise Memory Construction & Self-Evolution
+Traditional conversational agents lose context when:
 
-- **Layered Memory Architecture (L0–L3)**: Four-tier progressive architecture — L0 Raw Information → L1 Summary Memory → L2 Structured Memory → L3 User Profile — with independent persistent storage per layer, progressively increasing information density and resolving long-dialogue memory loss and preference overwrite issues. Supports automatic extraction of UserProfile, SemanticMemory, EpisodicMemory, Variable, and Summary, with flexible custom variable definitions and prohibited variable configurations for precise user need matching.
+- the model context window is exceeded
+- a conversation restarts
+- the same user returns in a later session
+- user preferences change over time
+- previously learned facts conflict with new information
 
-- **Auto Dreaming (Sleep-Time Memory Consolidation)**: Three-stage sleep paradigm inspired by cognitive neuroscience (Light Sleep screening → REM extraction & classification → Deep Sleep deduplication & conflict resolution), with background daemon scheduling, busy-retreat deferment, and checkpoint-based incremental scanning for linearly controllable Token costs.
+JiuwenMemory addresses this by turning memory into a structured, persistent system rather than a passive transcript store.
 
-- **MemoryTurbo Acceleration**: Conversations write to cache instantly for immediate updates while memory extraction runs asynchronously in the background; small models merge conversations by topic for group extraction, ensuring coherence and significantly amortizing large model call costs.
+Its core design goals are:
 
-- **Graph Memory (Knowledge Graph)**: Supports CONVERSATION/DOCUMENT/JSON multi-source writing, LLM-powered automatic entity and relationship extraction with merge deduplication, graph-structure retrieval, BFS expansion, and parallel Entity/Relationship/Episode retrieval with rerank scoring for precise knowledge localization.
+- **precision** — extract durable facts without treating every message as permanent memory
+- **efficiency** — avoid expensive synchronous extraction on every interaction
+- **consistency** — detect conflicts and manage updates safely
+- **portability** — expose memory through APIs, plugins, providers, and MCP
+- **governance** — isolate tenants, encrypt sensitive data, and control writes
 
-### 🔍 Efficient Memory Retrieval & Storage
+---
 
-- **Semantic Retrieval & Conflict Detection**: Unified cross-type vector semantic retrieval; `MemUpdateChecker` uses LLM to analyze semantic conflicts and intelligently decide ADD/DELETE strategies; LLM outputs UPDATE/DELETE directives validated via semantic checks before execution, ensuring memory consistency and controllable operations.
+## Why JiuwenMemory
 
-- **Full-Stack Storage Backend System**: Coverage across five storage categories — KV (InMemoryKV/ShelveStore/DbBasedKV/Redis), Vector (ChromaDB/Milvus/Elasticsearch/GaussVector), Relational (SQLite/PostgreSQL/MySQL/GaussDB), Message (SqlMessageStore), and Graph (Milvus GraphStore) — adapting from local single-node to cloud cluster scenarios.
+<p align="center">
+  <img src="docs/assets/jiuwenmemory-project-overview.png" alt="JiuwenMemory project overview" width="92%" />
+</p>
 
-- **Data Migration Framework**: Supports versioned schema migration for KV/vector/SQL/message/index stores and cross-BaseMemoryIndex batch data migration, with an operation registry for custom migration extensions.
+JiuwenMemory is built around several complementary memory mechanisms rather than a single vector database.
 
-### 🔌 Ecosystem Integration & Extensibility
+| Capability | Purpose |
+|---|---|
+| **L0–L3 layered memory** | Progressively transform raw interactions into denser, more useful memory. |
+| **Auto Dreaming** | Revisit stored sessions in the background to consolidate missed or fragmented information. |
+| **MemoryTurbo** | Decouple fast conversation writes from slower extraction work. |
+| **Semantic retrieval** | Search memories by meaning across memory types. |
+| **Conflict detection** | Detect incompatible memories before updating long-term state. |
+| **Graph Memory** | Extract entities, relationships, and episodes for graph-structured recall. |
+| **Multi-backend storage** | Support KV, vector, relational, message, and graph stores. |
+| **Agent adapters** | Connect memory to different agent platforms through decoupled plugin/provider layers. |
+| **REST + MCP access** | Make memory available to services and MCP-compatible AI clients. |
+| **Security controls** | Encrypt data, isolate tenants, and coordinate concurrent writes. |
 
-- **Dual-Dimension Decoupled Adapter Layer**: Plugin dimension (hook-based memory injection, supporting OpenClaw/openJiuwen) and Provider dimension (unified `MemoryProvider` interface with JiuwenMemory/Mem0) extend independently, enabling N × M free combination.
+---
 
-- **REST API Service & OpenClaw Plugin**: FastAPI complete REST API + bearer-token authentication for rapid backend integration; OpenClaw JavaScript lifecycle plugin for automatic memory storage and recall — zero-config, ready to use.
+## Memory Architecture
 
-### 🔒 Security & Privacy Hardening
+<p align="center">
+  <img src="docs/assets/jiuwenmemory-system-architecture.png" alt="JiuwenMemory system architecture" width="92%" />
+</p>
 
-- **AES-256-GCM Encryption**: Transparent encryption for memory data and API Keys to safeguard privacy, with automatic encryption protection for sensitive information to prevent unauthorized access.
+The core architecture separates **memory processing**, **memory management**, **storage**, **retrieval**, **graph memory**, and **external integrations**.
 
-- **Distributed Lock & Concurrency Consistency**: Distributed lock mechanism based on KV storage, ensuring atomicity and consistency of user-level data operations under multi-instance concurrent scenarios.
+```text
+Conversations / Documents / JSON
+               │
+               ▼
+       Memory Processing
+  extraction • analysis • refine
+               │
+               ▼
+       Memory Management
+ write • update • conflict check
+               │
+      ┌────────┼────────┐
+      ▼        ▼        ▼
+   Vector     SQL      KV / Message
+      │        │        │
+      └────────┼────────┘
+               ▼
+        Retrieval Layer
+ semantic • graph • rerank
+               │
+               ▼
+        Agent Context
+```
 
-- **Multi-Tenant Security Isolation**: Independent LLM/embedding/extraction rule configuration per `scope_id` with encrypted storage, achieving secure isolation of both data and configuration across tenants.
+The architecture also includes:
 
-## 3 Quick Start
+- independent Graph Memory
+- versioned migration support
+- distributed locking
+- encrypted configuration and memory data
+- external `MemoryProvider` adapters
+- REST and MCP service layers
 
-### Installation
+---
 
-- Operating System: Compatible with Windows, Linux, and macOS.
-- Python Version: Python version should be 3.11 or higher, but lower than 3.14. Please check your Python version before use, Python 3.11.4 is recommended.
+## Memory Lifecycle
 
-**Install from PyPI**
+<p align="center">
+  <img src="docs/assets/jiuwenmemory-memory-lifecycle.png" alt="JiuwenMemory layered memory lifecycle" width="92%" />
+</p>
+
+### L0 — Raw Information
+
+The original conversation is preserved as the foundation layer.
+
+```text
+user message
+assistant message
+session metadata
+```
+
+### L1 — Summary Memory
+
+Conversation history is compressed into shorter summaries that retain useful context while reducing token cost.
+
+### L2 — Structured Memory
+
+The system extracts structured units such as:
+
+- `SemanticMemory`
+- `EpisodicMemory`
+- `Variable`
+
+This layer represents reusable knowledge, facts, events, and state.
+
+### L3 — User Profile
+
+Higher-level, consolidated user characteristics are maintained as a persistent profile.
+
+Examples include:
+
+- identity information
+- preferences
+- long-term interests
+- stable relationships
+- recurring behavior
+- explicit positive or negative preferences
+
+---
+
+## Auto Dreaming
+
+Online extraction only sees a limited interaction window. **Dreaming** provides an offline consolidation path that periodically re-reads stored sessions and promotes durable knowledge.
+
+The lifecycle follows a three-stage model:
+
+```text
+Light Sleep
+   ↓
+screen candidate sessions
+   ↓
+REM
+   ↓
+extract and classify durable knowledge
+   ↓
+Deep Sleep
+   ↓
+deduplicate, resolve conflicts, consolidate
+```
+
+Important properties include:
+
+- background scheduling
+- checkpoint-based incremental scanning
+- configurable sweep intervals
+- session filters and extraction limits
+- busy-system deferment
+- user-level write locking
+- reuse of the same memory write and conflict-resolution path
+
+Dreamed memories are normal user-profile, semantic, or episodic memories; they are not stored as a separate special type.
+
+---
+
+## MemoryTurbo
+
+**MemoryTurbo** reduces the latency cost of memory extraction by separating immediate writes from heavier background processing.
+
+```text
+Conversation
+    │
+    ├──► cache / searchable raw memory
+    │
+    └──► asynchronous extraction pipeline
+              │
+              ▼
+        topic grouping
+              │
+              ▼
+       structured memory
+```
+
+This allows retrieval to work before full background extraction has completed.
+
+The design includes:
+
+- immediate cache-layer writes
+- asynchronous memory extraction
+- topic grouping using smaller models
+- merged retrieval across cache and extracted memory
+
+---
+
+## Storage & Retrieval
+
+JiuwenMemory supports multiple storage categories.
+
+### KV
+
+- In-memory KV
+- Shelve
+- database-backed KV
+- Redis
+
+### Vector
+
+- ChromaDB
+- Milvus
+- Elasticsearch
+- GaussVector
+
+### Relational
+
+- SQLite
+- PostgreSQL
+- MySQL
+- GaussDB
+
+### Message
+
+- SQL-backed message store
+
+### Graph
+
+- Milvus-based GraphStore
+
+This allows deployments to move from local single-node development to distributed backends without changing the conceptual memory model.
+
+---
+
+## Semantic Retrieval & Conflict Detection
+
+Memory lookup uses embedding-based semantic retrieval rather than keyword matching alone.
+
+Before writes are finalized, `MemUpdateChecker` can analyze new information against existing memory and decide whether the operation should behave like:
+
+```text
+ADD
+UPDATE
+DELETE
+```
+
+LLM-generated update/delete instructions are validated through semantic checks before execution.
+
+This helps prevent common long-term memory problems such as:
+
+- duplicated facts
+- outdated preferences
+- contradictory profile information
+- uncontrolled destructive updates
+
+---
+
+## Graph Memory
+
+Graph Memory is an independent memory subsystem for relationship-rich information.
+
+It supports input from:
+
+- conversations
+- documents
+- JSON strings
+
+Graph construction includes:
+
+```text
+Source Episode
+      ↓
+Entity Extraction
+      ↓
+Relation Extraction
+      ↓
+Entity Merge
+      ↓
+Relation Deduplication
+      ↓
+Graph Storage
+```
+
+Retrieval can search:
+
+- entities
+- relationships
+- source episodes
+
+and can apply:
+
+- hybrid ranking
+- reranking
+- BFS expansion
+
+Graph Memory is currently independent from the normal `LongTermMemory.add_messages` pipeline.
+
+---
+
+## Security & Isolation
+
+JiuwenMemory includes controls for deployments that persist sensitive user context.
+
+### AES-256-GCM
+
+Memory data and API keys can be transparently encrypted.
+
+### Distributed Locking
+
+A KV-backed distributed lock coordinates user-level writes across multiple service instances.
+
+### Multi-Tenant Scope Isolation
+
+Each `scope_id` can have independent:
+
+- memory data
+- LLM configuration
+- embedding configuration
+- extraction rules
+
+Configuration is stored separately and encrypted to preserve tenant isolation.
+
+---
+
+## Agent & Provider Integration
+
+JiuwenMemory decouples agent platforms from memory providers across two dimensions.
+
+### Plugin Dimension
+
+Hook-based integrations can inject memory before replies and capture new exchanges afterward.
+
+### Provider Dimension
+
+The unified `MemoryProvider` interface allows memory engines to be swapped without rewriting agent code.
+
+Supported integrations described by the project include:
+
+- JiuwenMemory
+- Mem0
+- openViking
+- AgentArts
+- openJiuwen
+
+The two adapter dimensions can evolve independently.
+
+---
+
+## Memory Services
+
+### REST Memory Service
+
+Install the service extras:
+
+```bash
+pip install JiuwenMemory[server]
+```
+
+Create the configuration directory:
+
+```bash
+mkdir -p ~/.jiuwenmemory
+cp server/.env.example ~/.jiuwenmemory/.env
+```
+
+Then start the service:
+
+```bash
+memory-server
+```
+
+The service exposes capabilities for:
+
+- adding messages
+- memory CRUD
+- key-value variable management
+- semantic retrieval
+
+Configuration and runtime data are stored under:
+
+```text
+~/.jiuwenmemory/
+├── .env
+└── memory_data/
+```
+
+---
+
+## MCP Service
+
+The same memory engine can be exposed through **Model Context Protocol**.
+
+Install:
+
+```bash
+pip install JiuwenMemory[server]
+```
+
+Run:
+
+```bash
+memory-mcp
+```
+
+Default endpoint:
+
+```text
+http://127.0.0.1:8765/mcp
+```
+
+Available tool categories include:
+
+- `add_messages`
+- `search_memories`
+- `search_history_summaries`
+- `get_memories`
+- `update_memory`
+- `delete_memory`
+- `delete_all_memories`
+- `health_check`
+
+This allows MCP-compatible AI clients to use memory without custom HTTP integration code.
+
+---
+
+## Quick Start
+
+### Requirements
+
+- Windows, Linux, or macOS
+- Python `>=3.11,<3.14`
+- Python 3.11.x recommended by the project
+
+### Install
 
 ```bash
 pip install -U JiuwenMemory
 ```
 
-**Install Optional Storage Backends**
+### Optional Backends
 
 ```bash
-# SQLite support
 pip install JiuwenMemory[sqlite]
-
-# PostgreSQL support
 pip install JiuwenMemory[postgres]
-
-# MySQL support
 pip install JiuwenMemory[mysql]
-
-# GaussDB support
 pip install JiuwenMemory[gaussdb]
-
-# Redis support
 pip install JiuwenMemory[redis]
-
-# ChromaDB vector store
 pip install JiuwenMemory[chromadb]
-
-# File-system memory backend (sqlite-vec + watchdog + jieba)
-# Required for INDEX_BACKEND=file; missing deps silently degrade:
 pip install JiuwenMemory[file-index]
-
-# Memory server (includes uvicorn + fastapi; enables `memory-server` CLI command)
 pip install JiuwenMemory[server]
+```
 
-# Install all storage backends (includes server)
+Install all optional storage/server dependencies:
+
+```bash
 pip install JiuwenMemory[all]
 ```
 
-### Example
+---
 
-Let's create a simple long-term memory instance, register storage backends, add conversation messages, and retrieve memories:
+## Minimal Usage Pattern
+
+A typical application lifecycle is:
+
+```text
+1. Create LongTermMemory
+2. Register storage backends
+3. Configure LLM and embedding providers
+4. Create a scope
+5. Enable desired memory types
+6. Add conversation messages
+7. Search memories semantically
+```
+
+Example:
 
 ```python
-import asyncio
-import tempfile
-from sqlalchemy.ext.asyncio import create_async_engine
 from jiuwen_memory.memory_core import LongTermMemory
-from jiuwen_memory.memory_core.config.config import MemoryEngineConfig, MemoryScopeConfig, AgentMemoryConfig, DreamingConfig
-from jiuwen_memory.foundation.llm.schema.config import ModelClientConfig, ModelRequestConfig
-from jiuwen_memory.foundation.llm import UserMessage, AssistantMessage
-from jiuwen_memory.foundation.store.kv.in_memory_kv_store import InMemoryKVStore
-from jiuwen_memory.foundation.store.db.default_db_store import DefaultDbStore
-from jiuwen_memory.foundation.store.vector.chroma_vector_store import ChromaVectorStore
-from jiuwen_memory.retrieval.embedding.api_embedding import APIEmbedding
-from jiuwen_memory.retrieval.common.config import EmbeddingConfig
 
-# ============== Configuration: set directly in code, no .env required ==============
-# LLM configuration
-MODEL_PROVIDER = "xxxx"
-API_BASE = "xxxx"
-API_KEY = "xxxx"
-MODEL_NAME = "xxxx"
-
-# Embedding configuration
-EMBED_MODEL_NAME = "xxxx"
-EMBED_API_BASE = "xxxx"
-EMBED_API_KEY = "xxxx"
-# ====================================================================================
-
-
-async def main():
-    # Get the LongTermMemory singleton
-    memory = LongTermMemory()
-
-    # Create LLM configuration
-    model_client_config = ModelClientConfig(
-        client_provider=MODEL_PROVIDER,
-        api_key=API_KEY,
-        api_base=API_BASE,
-        verify_ssl=False,
-    )
-    model_config = ModelRequestConfig(
-        model=MODEL_NAME
-    )
-
-    # Create storage backends (example uses in-memory KV, SQLite, and ChromaDB)
-    kv_store = InMemoryKVStore()
-    engine = create_async_engine("sqlite+aiosqlite:///./memory.db")
-    db_store = DefaultDbStore(engine)
-    vector_store = ChromaVectorStore(persist_directory=tempfile.mkdtemp())
-
-    # Create embedding model
-    embedding_config = EmbeddingConfig(
-        model_name=EMBED_MODEL_NAME,
-        base_url=EMBED_API_BASE,
-        api_key=EMBED_API_KEY,
-    )
-    embedding_model = APIEmbedding(config=embedding_config)
-
-    # Register storage backends
-    await memory.register_store(
-        kv_store=kv_store,
-        db_store=db_store,
-        vector_store=vector_store,
-        embedding_model=embedding_model,
-    )
-
-    # Configure memory engine
-    engine_config = MemoryEngineConfig(
-        default_model_cfg=model_config,
-        default_model_client_cfg=model_client_config,
-    )
-    memory.set_config(engine_config)
-
-    # Configure scope
-    scope_config = MemoryScopeConfig(
-        model_cfg=model_config,
-        model_client_cfg=model_client_config,
-        embedding_cfg=embedding_config,
-    )
-    await memory.set_scope_config(scope_id="my_app", memory_scope_config=scope_config)
-
-    # Configure agent memory
-    agent_config = AgentMemoryConfig(
-        enable_long_term_mem=True,
-        enable_user_profile=True,
-        enable_semantic_memory=True,
-        enable_episodic_memory=True,
-        enable_summary_memory=True,
-    )
-
-    # Feed the conversation turn by turn — each turn is stored and extracted online in real time.
-    conversation = [
-        ("I'm a data analyst; I use pandas on our sales data, but my pipeline has gotten slow.",
-         "You could try Polars — it's usually 5-10x faster than pandas and great for large datasets."),
-        ("I also enjoy basketball and reading sci-fi novels.",
-         "Nice balance! For hard sci-fi, Liu Cixin's 'The Three-Body Problem' is worth a read."),
-        ("This afternoon I played basketball with friends at the park, it was really fun.",
-         "Sounds like a great afternoon!"),
-    ]
-    for user_text, assistant_text in conversation:
-        await memory.add_messages(
-            messages=[UserMessage(content=user_text), AssistantMessage(content=assistant_text)],
-            agent_config=agent_config,
-            user_id="user_001",
-            scope_id="my_app",
-            session_id="session_001",
-        )
-
-    query = "how to speed up data processing"
-
-    # Print all of this user's memories, then run one semantic search.
-    async def show():
-        print("  memories:")
-        page = await memory.get_user_mem_by_page(user_id="user_001", scope_id="my_app", page_size=50)
-        for m in page:
-            print(f"    [{m.type.value}] {m.content}")
-        print("  search:")
-        for res in await memory.search_user_mem(query=query, num=5, user_id="user_001", scope_id="my_app"):
-            print(f"    {res.mem_info.content} (relevance: {res.score:.2f})")
-    
-    await show()
-
-asyncio.run(main())
+memory = LongTermMemory()
 ```
 
-Expected Output (memory content is LLM-generated, so wording will vary):
+A full example requires registered storage, embedding, model, and scope configurations.
+
+---
+
+## File-System Memory Backend
+
+JiuwenMemory can persist long-term memories as human-readable Markdown files.
+
+Install:
+
+```bash
+pip install JiuwenMemory[file-index]
 ```
-memories:
-  [user_profile] User is a data analyst
-  [user_profile] User uses pandas on sales data
-  [user_profile] User enjoys basketball
-  [user_profile] User enjoys reading sci-fi novels
-  [episodic_memory] User played basketball with friends at the park on the afternoon of 2026-06-18   # date reflects the run date and will vary
-search:
-  User uses pandas on sales data (relevance: 0.80)
-```
 
-> Dreaming writes the same memory types through the same path as online extraction — so its
-> output is ordinary `user_profile` / `semantic_memory` / `episodic_memory`, retrieved by the
-> same `search_user_mem`. Its added value here is the **Polars tip**: a reusable fact the
-> assistant supplied that the narrow per-turn window skipped, which the full-session sweep
-> consolidates into memory.
-
-#### Using the file-system backend (long-term memories persisted to markdown)
-
-The example above defaults to the vector backend (`index_backend="simple"`). To persist
-long-term memories as human-readable markdown files, with vectors + FTS5 index in SQLite,
-change `register_store` to:
+Then register the memory store with:
 
 ```python
 await memory.register_store(
     kv_store=kv_store,
     db_store=db_store,
     embedding_model=embedding_model,
-    index_backend="file",          # file-system memory backend
-    file_root_dir="./file_memory_data",  # root dir for .md files and memory.db
+    index_backend="file",
+    file_root_dir="./file_memory_data",
 )
 ```
 
-Install the optional dependencies first (missing deps degrade silently; recommended):
+The file backend combines human-readable memory files with an SQLite-based index.
 
-```bash
-pip install JiuwenMemory[file-index]
+---
+
+## Repository Structure
+
+The repository is organized around integrations, the core memory package, deployment, documentation, and tests.
+
+```text
+JiuwenMemory/
+├── .claude-plugin/             # Claude integration
+├── .codex-plugin/              # Codex integration
+├── agent-memory-platform/      # agent memory platform assets
+├── deploy/                     # deployment configuration
+├── docs/                       # documentation
+├── jiuwen_memory/              # core Python memory system
+├── tests/                      # automated tests
+├── LICENSE
+├── Open_Source_Software_Notice.txt
+├── README.md
+├── README.zh.md
+├── pyproject.toml
+└── uv.lock
 ```
 
-> Full parameter reference (`file_root_dir` required check, watchdog auto-start and
-> degradation, file-backend example) in the
-> [LongTermMemory API docs](docs/en/API%20Docs/long_term_memory.md). For service-style
-> deployment (`.env` with `INDEX_BACKEND=file`, hybrid retrieval weights, encryption
-> trade-offs, V1→V2 incompatibility and other ops constraints) see the
-> [memory_server docs](docs/en/API%20Docs/memory_server.md), section "INDEX_BACKEND=file".
+Inside the main package, the architecture includes:
 
-## 4 Architecture Design
-
-**JiuwenMemory** serves as the core module of the memory architecture. In this open-source version, the core capabilities include:
-
-* **Memory Processing Layer**: Through intelligent analysis of conversation messages, automatically extracts five types of memory — user profile (UserProfile), semantic memory (SemanticMemory), episodic memory (EpisodicMemory), variable (Variable), and summary (Summary) — and supports custom extraction rules and instruct-based memory operations (add, update, delete).
-
-* **Memory Management Layer**: Provides differentiated management strategies for different memory types, including FragmentMemoryManager, VariableManager, and SummaryManager, coordinated through WriteManager and SearchManager for unified read/write operations.
-
-* **Storage Foundation Layer**: Provides abstract interfaces for four types of storage — KV store, vector store, relational database, and message store — supporting flexible integration with multiple storage backends, and ensuring smooth data schema upgrades through the versioned migration framework.
-
-* **Graph Memory Layer**: Graph Memory uses LLMs to extract entities (Entity), relations (Relation), and source episodes (Episode) from conversations, documents, or JSON strings, then performs entity merging, relation deduplication, and graph-structured retrieval. It is currently used as an independent module and is not wired into the `LongTermMemory.add_messages` pipeline.
-
-* **External Integration Layer**: Through the MemoryProvider abstract interface, supports seamless integration with third-party memory services such as Mem0, AgentArts, openJiuwen, and openViking, providing unified tool calling and session synchronization mechanisms.
-
-## 5 Features
-
-### **Layered Memory System (L0–L3)**
-
-**JiuwenMemory** introduces a four-tier progressive architecture with independent persistent storage per layer, progressively increasing information density and resolving long-dialogue memory loss and preference overwrite issues:
-
-- **L0 — Raw Information**: Original conversation messages stored verbatim as the foundation layer.
-- **L1 — Summary Memory**: Per-turn and incremental summaries that compress conversation context.
-- **L2 — Structured Memory**: Automatically extracted SemanticMemory, EpisodicMemory, and Variable units — factual knowledge and event records organized by type.
-- **L3 — User Profile**: Consolidated affirmative/negative statements about the user (identity, preferences, relationships, assets, etc.), forming a personalized long-term portrait.
-
-Supports flexible custom variable definitions and prohibited variable configurations for precise user need matching.
-
-### **Dreaming (Sleep-Time Memory Consolidation)**
-
-Online extraction (`add_messages`) only ever sees a single turn. **Dreaming** is an optional background service that periodically re-reads a user's stored sessions, distills durable knowledge from them, and writes it back through the same path as online extraction — dreamed memories are ordinary user profile / semantic / episodic units, with no new memory type or storage field.
-
-- **Three-stage sleep paradigm**: Inspired by cognitive neuroscience — Light Sleep screening → REM extraction & classification → Deep Sleep deduplication & conflict resolution — mirroring how human memory consolidates during sleep.
-- **Fire-and-forget lifecycle**: `start_dreaming(scope_id, user_id, config=DreamingConfig(enabled=True))` launches a background scheduler (idempotent per `(scope_id, user_id)`); `stop_dreaming()` stops it. Disabled by default.
-- **Tunable via `DreamingConfig`**: sweep interval (`interval_seconds`), session pre-filters (`min_session_rounds`, `max_sessions_per_sweep`), and extraction caps (`max_compress_tokens`, `max_items_per_session`).
-- **Busy-retreat deferment**: Automatically backs off when the system is under heavy load, avoiding interference with online serving.
-- **Checkpointed and concurrency-safe**: Incremental scanning with checkpoint-based progress tracking that survives restarts; writes take the same user-level lock as `add_messages` and reuse semantic conflict detection, so online and offline writes never collide or duplicate.
-
-### **MemoryTurbo Acceleration**
-
-Conversations write to cache instantly for immediate updates while memory extraction runs asynchronously in the background. Small models merge conversations by topic for group extraction, ensuring coherence and significantly amortizing large model call costs — the memory flywheel spins faster with less fuel.
-
-- **Momentum Decoupling**: Breaks the serial pipeline — raw conversations write to the cache-layer vector store instantly for immediate updates, while memory extraction runs asynchronously in the background based on priority and compute load, reducing perceived user latency by 92%.
-- **Centrifugal Semantic Clustering**: Before asynchronous extraction, a small model groups and merges conversations by topic for batch extraction. This preserves topic coherence and avoids semantic drift caused by multiple separate LLM calls; compared to traditional per-turn extraction, it significantly amortizes both the number of extraction calls and Token consumption.
-- **Early Retrieval & Precision Guarantee**: Retrieval is available even before background extraction completes — cached raw conversations carry vector embeddings and are searchable. Results are merged from both the cache layer and the extraction layer, ensuring reduced latency without sacrificing precision.
-
-### **Semantic Retrieval and Conflict Detection**
-
-- **Vector Semantic Search**: Unified cross-memory-type vector retrieval based on embedding models, with similarity threshold filtering and ranking mechanisms.
-- **MemUpdateChecker**: Uses LLM to analyze semantic conflicts and intelligently decide ADD/DELETE strategies — before writing new memories, automatically detects semantic conflicts with existing memories to ensure memory consistency.
-- **Instruct-based Memory Operations**: Supports updating and deleting existing memories through LLM output UPDATE/DELETE instructions, validated via semantic checks before execution, ensuring operational accuracy and controllable operations.
-
-### **Graph Memory (Knowledge Graph Memory)**
-
-Graph Memory is an independent knowledge graph memory module. It turns input content into a graph of entities, relations, and source episodes, suitable for relationship retrieval, entity tracking, and graph expansion recall.
-
-- **Multi-source writes**: Supports conversation, document, and JSON-string `EpisodeType` inputs, and stores the original source as an Episode.
-- **Entity and relation extraction**: Uses an LLM to extract entity declarations, entity summaries, attributes, relations, and relation validity times.
-- **Merging and deduplication**: Recalls existing entities and relations during writes, performs entity merging, relation filtering, and semantic deduplication.
-- **Graph-structured retrieval**: Searches entity, relation, and Episode collections in parallel, with configurable hybrid ranking, rerank, and BFS expansion for entity/relation results.
-
-[→ Graph Memory API Docs](docs/en/API%20Docs/graph_memory.md)
-
-### **Flexible Storage Backends and Data Migration**
-
-- **Full-Stack Storage Backends**: Coverage across five storage categories — KV (InMemoryKV/ShelveStore/DbBasedKV/Redis), Vector (ChromaDB/Milvus/Elasticsearch/GaussVector), Relational (SQLite/PostgreSQL/MySQL/GaussDB), Message (SqlMessageStore), and Graph (Milvus GraphStore) — adapting from local single-node to cloud cluster scenarios.
-- **Versioned Migration**: A complete migration framework supporting SQL schema changes, vector field renaming, KV data updates, message data transformation, and index field operations.
-- **Cross-index Migration**: Supports batch migration of memory data between different BaseMemoryIndex instances for smooth storage engine switching, with an operation registry for custom migration extensions.
-
-### **Security and Concurrency Control**
-
-- **AES-256-GCM Encryption**: Transparent encryption for memory data and API Keys to safeguard privacy, with automatic encryption protection for sensitive information.
-- **Distributed Lock**: Distributed lock mechanism based on KV storage, ensuring atomicity and consistency of user-level data operations under multi-instance concurrent scenarios.
-- **Multi-Tenant Scope Isolation**: Supports memory data isolation by `scope_id`, with each scope independently configurable for LLM, embedding model, and extraction rules — configuration data is encrypted and stored separately for multi-tenant security isolation.
-
-### **Dual-Dimension Decoupled Adapter Layer**
-
-JiuwenMemory decouples Agent platforms from the memory engine through two independent dimensions:
-
-- **Plugin Dimension**: Hook-based memory injection, supporting JiuwenSwarm/OpenClaw/openJiuwen — injects relevant context before agent replies and captures exchanges after replies.
-- **Provider Dimension**: Unified `MemoryProvider` interface, supporting JiuwenMemory/Mem0/openViking/AgentArts — any provider can be swapped without changing agent code.
-
-The two dimensions extend independently, enabling N × M free combination of platforms and providers.
-
-### **Multi-Model LLM Clients**
-
-Supports OpenAI, DashScope, DeepSeek, SiliconFlow, OpenRouter, InferenceAffinity, IntelliRouter, and more — flexible selection of the optimal inference engine for your deployment scenario.
-
-## 6 Memory Service & OpenClaw Plugin
-
-A ready-to-run memory backend and an OpenClaw plugin that give agents persistent, searchable memory — zero extra code.
-
-### Memory Service
-
-One command to start a local memory engine backed by REST APIs:
-
-- **Memory CRUD** — add messages, update/delete memories, manage key-value variables.
-- **Semantic search** — retrieves memories by meaning, not keywords.
-- **Zero config** — install `JiuwenMemory[server]`, drop your LLM + embedding keys into `~/.jiuwenmemory/.env`, and run `memory-server`.
-
-```bash
-# Install the memory server
-pip install JiuwenMemory[server]
-
-# Create config directory and edit .env (see server/.env.example in the source repo for a template)
-mkdir -p ~/.jiuwenmemory
-cp server/.env.example ~/.jiuwenmemory/.env   # or create manually
-vim ~/.jiuwenmemory/.env                       # fill in API keys and backend config
-
-# Start the server
-memory-server
-
-# Source-code launch (still works during development)
-python -m server.memory_server
+```text
+jiuwen_memory/
+├── memory_core/
+│   ├── config/
+│   ├── manage/
+│   ├── process/
+│   │   ├── extract/
+│   │   ├── dreaming/
+│   │   └── refine/
+│   ├── graph/
+│   ├── prompts/
+│   ├── codec/
+│   ├── migration/
+│   ├── external/
+│   └── common/
+├── foundation/
+│   ├── llm/
+│   ├── store/
+│   ├── prompt/
+│   └── tool/
+├── retrieval/
+├── common/
+└── server/
 ```
 
-Configuration and data are stored under `~/.jiuwenmemory/`:
+---
 
-```
-~/.jiuwenmemory/
-├── .env              ← environment config (LLM / embedding / storage backends)
-├── memory_data/      ← data directory (SQLite / ChromaDB, auto-created)
-```
+## Data Migration
 
-### MCP Service
+The project includes versioned migration support for:
 
-The same memory engine is also exposed as an **MCP (Model Context Protocol)** server, so MCP-compatible clients (Claude Code, Codex Cursor, VS Code, …) can call memory tools directly — no HTTP client code needed. The MCP process owns the `LongTermMemory` engine in-process (lazy assembly on the first tool call, no crash on init failure).
+- SQL schema changes
+- vector field updates
+- KV data changes
+- message-store transformations
+- index operations
+- cross-`BaseMemoryIndex` migration
 
-```bash
-# Install with the [server] extras (provides mcp + uvicorn)
-pip install JiuwenMemory[server]
+Custom migration operations can be added through the migration registry.
 
-# Start the MCP server (default: Streamable HTTP at http://127.0.0.1:8765/mcp)
-memory-mcp
+---
 
-# Or via source
-python -m jiuwen_memory.server.mcp_server
-```
+## LLM Provider Support
 
-Connect a client by URL; tools include `add_messages`, `search_memories`, `search_history_summaries`, `get_memories`, `update_memory`, `delete_memory`, `delete_all_memories`, and `health_check`.
+The project includes model-client support for multiple providers and routing systems, including:
 
-[→ MCP Server API Docs](docs/en/API%20Docs/mcp_server.md)
+- OpenAI-compatible providers
+- DashScope
+- DeepSeek
+- SiliconFlow
+- OpenRouter
+- InferenceAffinity
+- IntelliRouter
 
-### OpenClaw Plugin
+This keeps memory processing independent from a single inference vendor.
 
-Auto-memory for OpenClaw agents — remembers what users said and recalls it before every reply.
+---
 
-- **Recall before reply** — injects relevant context so the agent never starts from scratch.
-- **Store after reply** — captures every exchange and extracts structured memories in the background.
+## Deployment Model
 
-[→ Full setup guide](agent-memory-plugin/JiuwenMemory-OpenClaw/README.md)
+JiuwenMemory can be used in several forms:
 
-## 7 Project Structure
-
-```
-agent-memory/
-├── jiuwen_memory/                # Main package
-│   ├── memory_core/                  # Core memory module
-│   │   ├── long_term_memory.py       # Long-term memory engine entry
-│   │   ├── config/                   # Configuration management
-│   │   │   ├── config.py             # Engine config, scope config, agent config
-│   │   │   └── graph.py              # Graph Memory write and search strategy config
-│   │   ├── manage/                   # Memory management
-│   │   │   ├── index/                # Memory managers
-│   │   │   │   ├── base_memory_manager.py     # Base manager class
-│   │   │   │   ├── fragment_memory_manager.py # Fragment memory manager
-│   │   │   │   ├── variable_manager.py        # Variable manager
-│   │   │   │   ├── summary_manager.py         # Summary manager
-│   │   │   │   └── write_manager.py           # Write manager
-│   │   │   ├── search/               # Search management
-│   │   │   │   └── search_manager.py # Search manager
-│   │   │   ├── update/               # Update detection
-│   │   │   └── mem_model/            # Data models
-│   │   │       ├── memory_unit.py    # Memory unit definitions
-│   │   │       ├── db_model.py       # Database models
-│   │   │       └── sql_db_store.py   # SQL database store
-│   │   ├── process/                  # Memory processing
-│   │   │   ├── extract/              # Memory extraction
-│   │   │   │   ├── generation.py     # Memory generator
-│   │   │   │   ├── long_term_memory_extractor.py  # Long-term memory extractor
-│   │   │   │   └── memory_analyzer.py # Memory analyzer
-│   │   │   ├── dreaming/             # Offline memory consolidation
-│   │   │   │   ├── orchestrator.py   # Background sweep scheduler
-│   │   │   │   ├── source.py         # Session source (reads message store)
-│   │   │   │   ├── sweeper.py        # Compress -> extract -> promote pipeline
-│   │   │   │   └── store.py          # Writes distilled knowledge as memory units
-│   │   │   └── refine/               # Memory refinement
-│   │   ├── graph/                    # Knowledge graph memory
-│   │   │   ├── graph_memory/         # GraphMemory write, search, and state management
-│   │   │   └── extraction/           # Entity/relation extraction models and prompts
-│   │   ├── prompts/                  # Prompt management
-│   │   │   └── prompt_applier.py     # Prompt template engine
-│   │   ├── codec/                    # Encoding/decoding
-│   │   │   └── aes_storage_codec.py  # AES encryption codec
-│   │   ├── migration/                # Data migration
-│   │   │   ├── migration_plan.py     # Migration plan and registry
-│   │   │   ├── migrator/             # Various migrators
-│   │   │   └── operation/            # Migration operation definitions
-│   │   ├── external/                 # External integrations
-│   │   │   ├── provider.py           # MemoryProvider abstract interface
-│   │   │   ├── mem0_provider.py      # Mem0 integration
-│   │   │   ├── agentarts_memory_provider.py  # AgentArts integration
-│   │   │   ├── openjiuwen_memory_provider.py # openJiuwen integration
-│   │   │   └── openviking_memory_provider.py  # openViking integration
-│   │   └── common/                   # Common utilities
-│   │       ├── distributed_lock.py   # Distributed lock
-│   │       └── kv_prefix_registry.py # KV prefix registry
-│   ├── foundation/                   # Foundation capabilities
-│   │   ├── llm/                      # LLM invocation
-│   │   │   ├── model.py              # Unified model interface
-│   │   │   └── model_clients/        # Various model clients
-│   │   ├── store/                    # Storage abstractions
-│   │   │   ├── base_kv_store.py      # KV store base class
-│   │   │   ├── base_vector_store.py  # Vector store base class
-│   │   │   ├── base_db_store.py      # Database store base class
-│   │   │   ├── base_message_store.py # Message store base class
-│   │   │   ├── base_memory_index.py  # Memory index base class
-│   │   │   └── graph/                # Graph store abstraction and Milvus implementation
-│   │   ├── prompt/                   # Prompt templates
-│   │   └── tool/                     # Tool definitions
-│   ├── retrieval/                    # Retrieval capabilities
-│   │   └── embedding/                # Embedding models
-│   ├── common/                       # Common components
-│   │   ├── security/                 # Security utilities
-│   │   ├── logging/                  # Logging management
-│   │   ├── exception/                # Exception handling
-│   │   └── utils/                    # General utilities
-│   ├── server/                       # Memory service (FastAPI)
-│   │   ├── __init__.py               # Package init
-│   │   ├── memory_server.py          # HTTP API server (CLI entry point main())
-│   │   ├── store_factory.py          # Storage backend factory
-│   │   └── .env.example              # Environment config template
-│   └── agent-memory-plugin/          # OpenClaw lifecycle plugin
-│       ├── lib/                      # Plugin library
-│       │   └── openjiuwen-memory-api.js # Memory API client
-│       ├── openjiuwen-memory-index.js # Plugin entry point
-│       ├── openclaw.plugin.json      # Plugin manifest
-│       ├── package.json              # npm package config
-│       └── README.md                 # Plugin documentation
-├── docs/                             # Documentation
-└── tests/                            # Test cases
+```text
+Python Library
+      │
+      ├── embedded directly in an agent service
+      │
+      ├── exposed as REST memory service
+      │
+      ├── exposed as MCP service
+      │
+      └── integrated through plugins/providers
 ```
 
-## Contributing
+A typical production-style deployment can separate:
 
-We welcome all forms of contributions, including but not limited to:
-- Submitting issues and feature suggestions
-- Improving documentation
-- Submitting code
-- Sharing usage experiences
+- agent runtime
+- memory API/MCP runtime
+- relational storage
+- vector storage
+- Redis/KV
+- background Dreaming workers
 
-## Open Source License
+---
 
-This project is licensed under the Apache-2.0 License.
+## Design Principles
 
-This product serves solely as a workflow orchestration tool and does not embed any AI model capabilities. When users integrate AI models for specific business scenarios, they shall bear full responsibility for compliance obligations under the EU AI Act and other relevant regulatory frameworks.
+The project is built around a few important memory-system principles:
+
+- **memory is not the transcript**
+- **short-term interaction and long-term knowledge should be separated**
+- **not every message deserves permanent storage**
+- **memory updates require conflict detection**
+- **background consolidation can recover missed knowledge**
+- **retrieval should work across memory types**
+- **storage should remain replaceable**
+- **tenant boundaries must remain explicit**
+- **agents should consume memory through stable interfaces**
+
+---
+
+## License
+
+JiuwenMemory is licensed under the **Apache-2.0 License**.
+
+The repository also includes an open-source software notice for third-party components.
+
+---
+
+<p align="center">
+  <strong>Memory turns isolated interactions into continuous agent experience.</strong>
+</p>
